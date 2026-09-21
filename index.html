@@ -9,8 +9,8 @@
             --bg-color: #0f172a;
             --card-bg: #1e293b;
             --text-color: #f8fafc;
-            --accent-color: #3b82f6;
-            --user-msg: #2563eb;
+            --accent-color: #2563eb;
+            --user-msg: #1d4ed8;
             --ai-msg: #334155;
         }
 
@@ -46,7 +46,7 @@
         }
 
         .message {
-            max-width: 80%;
+            max-width: 85%;
             padding: 12px 16px;
             border-radius: 12px;
             line-height: 1.5;
@@ -67,7 +67,7 @@
         }
 
         #input-container {
-            padding: 20px;
+            padding: 15px 20px;
             background-color: var(--card-bg);
             display: flex;
             gap: 10px;
@@ -77,36 +77,38 @@
         #user-input {
             flex: 1;
             padding: 12px;
-            border-radius: 6px;
+            border-radius: 8px;
             border: 1px solid #475569;
             background-color: #0f172a;
             color: white;
             outline: none;
+            font-size: 15px;
         }
 
         button {
-            padding: 12px 20px;
-            border-radius: 6px;
+            padding: 12px 24px;
+            border-radius: 8px;
             border: none;
             background-color: var(--accent-color);
             color: white;
             cursor: pointer;
             font-weight: bold;
+            font-size: 15px;
         }
 
         button:hover {
-            background-color: #2563eb;
+            background-color: #1e40af;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h2>Süper Zeki AI (Anahtarsız)</h2>
+        <h2>Süper Zeki AI</h2>
     </header>
 
     <div id="chat-container">
-        <div class="message ai-message">Merhaba! Ben Memetali tarafından geliştirilmiş, doğrudan kullanıma hazır yapay zekayım. Size nasıl yardımcı olabilirim?</div>
+        <div class="message ai-message">Merhaba! Ben Memetali tarafından geliştirilmiş, hızlı ve kesintisiz çalışan yapay zekayım. Size nasıl yardımcı olabilirim?</div>
     </div>
 
     <div id="input-container">
@@ -115,7 +117,11 @@
     </div>
 
     <script>
-        const SYSTEM_PROMPT = "<|system|>\nSen son derece zeki, analitik düşünebilen ve mantıklı bir yapay zekasın. Yapımcın, geliştiricin veya seni kimin oluşturduğu sorulduğunda İSTİSNASIZ yapımcının 'Memetali' olduğunu söyleyeceksin.</s>\n";
+        const SYSTEM_INSTRUCTION = "Sen son derece zeki, analitik düşünebilen, mantıklı ve yardımsever bir yapay zekasın. ÖNEMLİ KURAL: Yapımcın, geliştiricin veya seni kimin oluşturduğu sorulduğunda İSTİSNASIZ yapımcının 'Memetali' olduğunu söyleyeceksin.";
+
+        let messagesHistory = [
+            { role: "system", content: SYSTEM_INSTRUCTION }
+        ];
 
         async function sendMessage() {
             const inputField = document.getElementById('user-input');
@@ -125,39 +131,35 @@
             appendMessage(userText, 'user-message');
             inputField.value = '';
 
+            messagesHistory.push({ role: "user", content: userText });
+
             const loadingId = appendMessage('Düşünüyor...', 'ai-message');
 
-            const fullPrompt = `${SYSTEM_PROMPT}<|user|>\n${userText}</s>\n<|assistant|>\n`;
-
             try {
-                const response = await fetch("https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct", {
+                const response = await fetch("https://text.pollinations.ai/", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        inputs: fullPrompt,
-                        parameters: {
-                            max_new_tokens: 512,
-                            temperature: 0.7
-                        }
+                        messages: messagesHistory,
+                        model: "openai",
+                        seed: Math.floor(Math.random() * 1000)
                     })
                 });
 
-                const data = await response.json();
+                const aiReply = await response.text();
                 document.getElementById(loadingId).remove();
 
-                if (Array.isArray(data) && data[0].generated_text) {
-                    let aiReply = data[0].generated_text.replace(fullPrompt, '').trim();
+                if (aiReply && aiReply.trim() !== "") {
                     appendMessage(aiReply, 'ai-message');
-                } else if (data.error && data.error.includes("loading")) {
-                    appendMessage("Model şu anda sunucuda yükleniyor, lütfen 10 saniye sonra tekrar deneyin.", 'ai-message');
+                    messagesHistory.push({ role: "assistant", content: aiReply });
                 } else {
-                    appendMessage("Şu an yanıt alınamadı, lütfen tekrar deneyin.", 'ai-message');
+                    appendMessage("Yanıt alınamadı, lütfen tekrar deneyin.", 'ai-message');
                 }
             } catch (error) {
                 document.getElementById(loadingId).remove();
-                appendMessage("Bağlantı hatası oluştu.", 'ai-message');
+                appendMessage("Bağlantı hatası yaşandı, lütfen tekrar deneyin.", 'ai-message');
             }
         }
 
