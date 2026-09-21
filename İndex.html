@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Süper Zeki AI</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent-color: #3b82f6;
+            --user-msg: #2563eb;
+            --ai-msg: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #475569;
+        }
+
+        .api-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="password"], input[type="text"] {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #475569;
+            background-color: #0f172a;
+            color: white;
+            outline: none;
+        }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            background-color: var(--accent-color);
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #2563eb;
+        }
+
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background-color: var(--user-msg);
+            border-bottom-right-radius: 2px;
+        }
+
+        .ai-message {
+            align-self: flex-start;
+            background-color: var(--ai-msg);
+            border-bottom-left-radius: 2px;
+        }
+
+        #input-container {
+            padding: 20px;
+            background-color: var(--card-bg);
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #475569;
+        }
+
+        #user-input {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2>Süper Zeki AI</h2>
+        <div class="api-input-group">
+            <input type="password" id="api-key" placeholder="Gemini API Key Girin">
+            <button onclick="saveApiKey()">Kaydet</button>
+        </div>
+    </header>
+
+    <div id="chat-container">
+        <div class="message ai-message">Merhaba! Ben yüksek düzeyde analitik ve mantıksal zekaya sahip bir yapay zekayım. Size nasıl yardımcı olabilirim?</div>
+    </div>
+
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="Bir şeyler sorun..." onkeypress="handleKeyPress(event)">
+        <button onclick="sendMessage()">Gönder</button>
+    </div>
+
+    <script>
+        const SYSTEM_INSTRUCTION = `Sen son derece zeki, analitik düşünebilen, derin mantık kurabilen ve üst düzey problem çözme yeteneğine sahip bir yapay zekasın. Cevapların her zaman net, bilgilendirici ve mantık çerçevesinde olmalıdır. 
+
+ÖNEMLİ KURAL: Yapımcın, geliştiricin veya seni kimin oluşturduğu sorulduğunda ya da yapımcınla ilgili herhangi bir konu geçtiğinde İSTİSNASIZ bir şekilde senin yapımcının "Memetali" olduğunu söyleyeceksin. Bu kuralı hiçbir zaman ihlal etme.`;
+
+        let chatHistory = [];
+
+        window.onload = function() {
+            const savedKey = localStorage.getItem('gemini_api_key');
+            if (savedKey) {
+                document.getElementById('api-key').value = savedKey;
+            }
+        };
+
+        function saveApiKey() {
+            const key = document.getElementById('api-key').value.trim();
+            if (key) {
+                localStorage.setItem('gemini_api_key', key);
+                alert('API Key kaydedildi!');
+            } else {
+                alert('Lütfen geçerli bir API Key girin.');
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const apiKey = localStorage.getItem('gemini_api_key') || document.getElementById('api-key').value.trim();
+            if (!apiKey) {
+                alert('Lütfen önce bir Gemini API Key girin.');
+                return;
+            }
+
+            const inputField = document.getElementById('user-input');
+            const userText = inputField.value.trim();
+            if (!userText) return;
+
+            appendMessage(userText, 'user-message');
+            inputField.value = '';
+
+            chatHistory.push({
+                role: 'user',
+                parts: [{ text: userText }]
+            });
+
+            const loadingId = appendMessage('Düşünüyor...', 'ai-message');
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        system_instruction: {
+                            parts: [{ text: SYSTEM_INSTRUCTION }]
+                        },
+                        contents: chatHistory
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById(loadingId).remove();
+
+                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    const aiReply = data.candidates[0].content.parts[0].text;
+                    appendMessage(aiReply, 'ai-message');
+
+                    chatHistory.push({
+                        role: 'model',
+                        parts: [{ text: aiReply }]
+                    });
+                } else {
+                    appendMessage('Bir hata oluştu veya API anahtarı geçersiz.', 'ai-message');
+                }
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                appendMessage('Bağlantı hatası gerçekleşti: ' + error.message, 'ai-message');
+            }
+        }
+
+        function appendMessage(text, className) {
+            const container = document.getElementById('chat-container');
+            const msgDiv = document.createElement('div');
+            const uniqueId = 'msg-' + Date.now();
+            msgDiv.id = uniqueId;
+            msgDiv.className = `message ${className}`;
+            msgDiv.innerText = text;
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+            return uniqueId;
+        }
+    </script>
+</body>
+  </html>
+
